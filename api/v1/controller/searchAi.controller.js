@@ -10,7 +10,7 @@ module.exports.aiSearch = async (req, res) => {
     }
 
     // Lấy danh sách sản phẩm để AI tham chiếu nếu cần
-    const products = await Product.find({ deleted: false }).limit(10);
+    const products = await Product.find({ deleted: false, status: "active" }).limit(10);
 
     const prompt = `
       Bạn là một trợ lý hỗ trợ khách hàng chuyên nghiệp.
@@ -27,7 +27,7 @@ module.exports.aiSearch = async (req, res) => {
             "price": "Giá sản phẩm",
             "thumbNail": "Link hình ảnh",
             "color": "màu sắc,
-            "feeture: "1"
+            "featured: "sản phảm nổi bật"
           }
         ]
       2. Nếu người dùng hỏi về thông tin (chính sách bảo hành, đổi trả, khuyến mãi,...), hãy trả lời rõ ràng và thân thiện bằng văn bản thuần túy.

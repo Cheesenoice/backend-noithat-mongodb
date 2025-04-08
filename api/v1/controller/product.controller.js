@@ -52,11 +52,10 @@ module.exports.product = async (req, res)=>{
         return item;                                                                            // ham toFixed giup loai bo cac dau sau dau phay      
     })
     
-    const newProduct = treeHelper.tree(record)
+    // const newProduct = treeHelper.tree(record)
     res.json([
         {
             data: newProducts,
-            dataCategory: newProduct,
             page: req.query.page,
             limit: req.query.limit,
             code:200,

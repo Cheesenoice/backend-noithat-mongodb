@@ -10,16 +10,20 @@ const searchAiRouter = require("./searchAi.router")
 const myaccountClient = require("./myAccountClient.router")
 const authAdmin = require("../../../middleware/authAdmin.middleware copy")
 const authClient = require("../../../middleware/authClient.middleware")
-const homeRouter = require("./home.router")
 const blogFeatured = require("./blogFeatured.router")
 const loginGoogle = require("./authGoogle.router")
 const loginFacebook = require("./loginFacebook.router")
 const logoutRouter = require("./logout.router")
-
+const homeRouter = require("./home.router")
+const cartRouter = require("./cart.router")
+const cartMiddleware = require("../../../middleware/cart.middleware")
+const checkoutRouter = require("./checkout.router")
 module.exports = (app)=>{
 
     try {
+        app.use(cartMiddleware.cart)
         const version = '/api/v1';
+        app.use(version + '/', homeRouter)
         app.use(version + '/product', productRouter)
         app.use(version + '/product-category', productsCategoryRouter)
         app.use(version + '/auth', userRouter)
@@ -34,7 +38,8 @@ module.exports = (app)=>{
         app.use(version + '/blog', blogFeatured)
         app.use(version + '/',loginGoogle )
         app.use(version + '/', loginFacebook)
-        app.use(version + '/logout', logoutRouter)
+        app.use(version + '/cart', cartRouter)
+        app.use(version + '/checkout', checkoutRouter)
 
     } catch (error) {
         console.log(error);
