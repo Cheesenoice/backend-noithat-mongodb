@@ -14,30 +14,20 @@ const userSchema = new mongoose.Schema({
     roleId: String,
     status: String,
     position: Number,
-    // Thông tin Firebase
-    firebaseUid: {
-        type: String,
-        unique: true,
-        sparse: true // Cho phép null và unique
-    },
-    firebaseProvider: {
-        type: String,
-        enum: ["google.com", "password", null]
-    },
-    emailVerified: {
-        type: Boolean,
-        default: false
-    },
-    lastLoginAt: Date,
     // Các trường cũ cho Google OAuth (có thể giữ lại để tương thích ngược)
     googleId: String,
-    accessToken: String,
-    refreshToken: String,
+
     deleted: {
         type: Boolean,
         default: false
     },
-    deletedAt: Date
+    deletedAt: Date,
+    updatedBy: [
+        {
+          account_id: String,  // tọa thêm trường deletedAt: Date để có thể lấy được thời gian thay đổi trường trong database
+          updateAt: Date
+        }
+    ],
 }, {
     timestamps: true
 });

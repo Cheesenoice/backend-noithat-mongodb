@@ -3,46 +3,75 @@ const randomString = require("../../../helper/randomString")
 const md5 = require('md5');
 const sendMail = require("../../../helper/sendMail.helper")
 const ForgotPassword = require("../../../model/sendOtp.model")
-module.exports.register = async (req, res)=>{
-    
+module.exports.register = async (req, res) => {
     try {
+        // Kiểm tra email đã tồn tại hay chưa
         const exisEmail = await User.findOne({
             email: req.body.email,
-            deleted: false
-        })
-        if(exisEmail){
-            res.json({
+            deleted: false,
+        });
+
+        if (exisEmail) {
+            return res.json({
                 code: 404,
                 message: "Email đã bị trùng"
-            })
-        }else {
-            const user = new User({
-                fullName: req.body.fullName,
-                email: req.body.email,
-                phoneNumber: req.body.phoneNumber,
-                passWord: md5(req.body.passWord),
-                token: randomString.generateRandomString(20)
-    
-            })
-    
-            await user.save()
-    
-            const token = user.token;
-            res.cookie("token", token)
-    
-            res.json({
-                code: 200,
-                message: " Đăng Kí tài khoản thành công thành công",
-            })
+            });
         }
-    } catch (error) {
+
+        if (exisName) {
+            return res.json({
+                code: 404,
+                message: "Tên đăng nhập đã bị trùng"
+            });
+        }
+
+        // Kiểm tra số điện thoại đã tồn tại hay chưa
+        const exisPhone = await User.findOne({
+            phoneNumber: req.body.phoneNumber,
+            deleted: false,
+        });
+
+        if (exisPhone) {
+            return res.json({
+                code: 404,
+                message: "Số điện thoại đã bị trùng"
+            });
+        }
+
+        // Tự động tăng position theo số lượng user hiện tại
+        const count = await User.countDocuments({ deleted: false });
+        const newPosition = count + 1;
+
+        // Tạo user mới
+        const user = new User({
+            fullName: req.body.fullName,
+            email: req.body.email,
+            phoneNumber: req.body.phoneNumber,
+            passWord: md5(req.body.passWord),
+            token: randomString.generateRandomString(20),
+            position: newPosition,
+            status: "active"
+        });
+
+        await user.save();
+
+        res.cookie("token", user.token);
+
         res.json({
             code: 200,
-            message: " Đăng Kí tài khoản không thành công thành công"
-        })
+            message: "Đăng ký tài khoản thành công",
+        });
+
+    } catch (error) {
+        console.error("Lỗi khi đăng ký:", error);
+        res.json({
+            code: 500,
+            message: "Đăng ký tài khoản không thành công"
+        });
     }
-    
-}
+};
+
+
 
 module.exports.login = async (req, res)=>{
    try {
@@ -51,14 +80,15 @@ module.exports.login = async (req, res)=>{
         fullName: fullName,
         email: email,
         phoneNumber: phoneNumber,
-        deleted: false
+        deleted: false,
+        status: "active"
 
     })
     
     if(!user){
         res.json({
             code: 404,
-            message: "Sai thông tin đăng nhập khong thành công"
+            message: "Sai thông tin đăng nhập khong thành công, hoặc tài khoản của bạn bị khóa "
         })
 
         return;
@@ -218,20 +248,20 @@ module.exports.resetPassword = async (req, res)=>{
    }
 }
 
-module.exports.list = async(req, res)=>{
+// module.exports.list = async(req, res)=>{
 
-    try {
-        const user = await User.find({
-            deleted: false
-        }).select("-token -passWord")
-        res.json({
-            data: user,
-            code:200
-        })
-    } catch (error) {
-        res.json({
-            code: 404,
-            error: error
-        })
-    }
-}
+//     try {
+//         const user = await User.find({
+//             deleted: false
+//         }).select("-token -passWord")
+//         res.json({
+//             data: user,
+//             code:200
+//         })
+//     } catch (error) {
+//         res.json({
+//             code: 404,
+//             error: error
+//         })
+//     }
+// }

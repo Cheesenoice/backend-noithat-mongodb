@@ -13,7 +13,9 @@ module.exports.profile = async (req, res) => {
         facebookId: user.id, // Sử dụng `id` từ Facebook để kiểm tra
         deleted: false,
       });
-  
+      // Tự động tăng position theo số lượng user hiện tại
+      const count = await User.countDocuments({ deleted: false });
+      const newPosition = count + 1;
       if (!existingUser) {
         const newUser = new User({
             facebookId: user.id, // ID từ Facebook
@@ -23,6 +25,7 @@ module.exports.profile = async (req, res) => {
             token: randomStringHelper.generateRandomString(20),
             status: "active", 
             deleted: false, 
+            position: newPosition
         });
   
         // Lưu người dùng mới vào cơ sở dữ liệu

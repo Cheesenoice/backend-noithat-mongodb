@@ -22,6 +22,7 @@ const paymomoRouter = require("./paymomo.router")
 const productClientRouter = require("./productClient.router")
 const articleCategoryRouter = require("./articleCategory.router")
 const getArticleCategoryRouter = require("./getArticleCategory.router")
+const managerUserAccountRouter = require("./managerUserAccount.router")
 module.exports = (app)=>{
 
     try {
@@ -47,6 +48,7 @@ module.exports = (app)=>{
         app.use(version + '/products', productClientRouter)
         app.use(version + '/articles', getArticleCategoryRouter)
         app.use(version + '/articleCategory', authAdmin.authRequire, articleCategoryRouter)
+        app.use(version + '/listUser', authAdmin.authRequire, managerUserAccountRouter)
         app.use(version + '/logout', logoutRouter)
         
     } catch (error) {

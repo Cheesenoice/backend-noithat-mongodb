@@ -1,5 +1,6 @@
 const momoConfig = require("../../../config/pay");
-
+const crypto = require('crypto');
+const axios = require('axios');
 module.exports.paymomo =  async (req, res) => {
     const { amount = '10000', orderInfo = 'Thanh toán đơn hàng Node.js' } = req.body;
   
@@ -46,7 +47,7 @@ module.exports.paymomo =  async (req, res) => {
       return res.status(500).json({ error: 'Tạo thanh toán thất bại' });
     }
   }
-  
+
   module.exports.callbackPay = (req, res) => {
     const resultCode = req.query.resultCode;
   

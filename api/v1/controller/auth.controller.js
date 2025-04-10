@@ -8,12 +8,13 @@ module.exports.login = async (req, res)=>{
     const passWord = req.body.passWord;
     const exisEmail = await Account.findOne({
         email: email,
-        deleted: false
+        deleted: false,
+        status: "active"
     })
     if(!exisEmail){
         res.json({
             code: 400,
-            message: "Tài khoản không tồn tại"
+            message: "Tài khoản không tồn tại, hoặc đã bị khóa"
         })
         return;
     }    

@@ -3,63 +3,13 @@ const Role = require("../../../model/permission.modle")
 const searchHelper = require("../../../helper/search.helper")
 const bcrypt = require('bcrypt');
 const paginationHelper = require("../../../helper/pagination.helper");
-// module.exports.account = async (req, res)=>{
-//     const find = {
-//         deleted: false
-//     }
 
-//     // chức năng lọc theo trạng thái 
-//     if(req.query.status){
-//         find.status = req.query.status
-//     }
-
-//     // chức năng tìm kiếm 
-//     const search = searchHelper(req.query);
-//     if(search.regex){
-//         find.title = search.regex;
-//     }
-
-//     // chuc nang phan trang         
-//     let initPagination = {
-//         currentPage: 1,
-//         limitItem: 8
-//     }
-//     const countProduct = await Account.countDocuments(find);
-//     const ojectPanigation = paginationHelper(
-//         initPagination,
-//         req.query,
-//         countProduct
-//     )
-    
-//     // tính năng sắp xếp theo tiêu chí 
-//     const sort = {};
-//     if(req.query.sortKey&&req.query.sortValue){
-//         sort[req.query.sortKey] = req.query.sortValue;
-//     }else {
-//         sort.position = "desc"
-//     }
-
-//     const account = await Account.find(find).sort(sort).limit(ojectPanigation.limitItem).skip(ojectPanigation.skip).select("-passWord -token")
-    
-//     for (const record of account) {
-//         const role = await Role.findOne({
-//             _id: record.roleId, 
-//             deleted: false
-//         })
-//         record.role = role
-//     }
-
-//     res.json({
-//         data: account,
-//         code: 200,
-//         message: "Thành công"
-//     })
-// }
 
 module.exports.account = async (req, res) => {
     try {
         const find = {
-            deleted: false
+            deleted: false,
+            status: "active"
         };
 
         // Lọc theo trạng thái nếu có
@@ -162,64 +112,7 @@ module.exports.account = async (req, res) => {
 };
 
 
-// module.exports.create =  async (req, res)=>{
-//     console.log(req.body);
-    
-//     try {
-//         const email = req.body.email;
-//         const passWord = req.body.passWord;
-//         const hashedPassword = await bcrypt.hash(passWord, 10);
-//         if (req.body.position == ""){
-//             const count =  new Account.countDocuments();
-//             req.position = count + 1;
-//         }else {
-//             req.body.position = parseInt(req.body.position)
-//         }
-//         const exisEmail = await Account.findOne({
-//             email: email,
-//             deleted: false
-//         })
 
-//         if(exisEmail){
-//             res.json({
-//                 code: 404,
-//                 message: "tạo tài khoản không thành công email đã tồn tại"
-//             })        
-//             return;
-//         }
-        
-
-//         // const isMatch = await bcrypt.compare(passWord, hashedPassword);
-        
-//         // if (!isMatch) {
-//         //     return res.status(401).json({ success: false, message: 'Sai mật khẩu!' });
-//         // }
-//         const account = new Account({
-//             fullName: req.body.fullName,
-//             email: email,
-//             passWord: hashedPassword,
-//             phoneNumber: req.body.phoneNumber,
-//             avatar: req.body.avatar,
-//             status: req.body.status,
-//             position: req.body.position
-          
-//     });
-//         await account.save()
-        
-//         res.json({
-//             code: 200,
-//             data: account,
-//             message: "thành công"
-//         })
-        
-//     } catch (error) {
-//      res.json({
-//         code: 404,
-//         error: error
-//      })   
-//     }
-
-// }
 
 module.exports.create = async (req, res) => {
     console.log(req.body);
@@ -247,7 +140,18 @@ module.exports.create = async (req, res) => {
                 message: "Tạo tài khoản không thành công, email đã tồn tại"
             });
             return;
-        }        
+        }  
+        const exisPhone = await Account.findOne({
+            email: req.body.phoneNumber,
+            deleted: false
+        }); 
+        if (exisPhone) {
+            res.json({
+                code: 404,
+                message: "Tạo tài khoản không thành công, số điện thoại đã tồn tại"
+            });
+            return;
+        }      
         // Thêm thông tin người tạo
         req.user.createBy = {
             account_id: req.user.id,
@@ -284,124 +188,7 @@ module.exports.create = async (req, res) => {
 };
 
 
-// module.exports.create = async (req, res) => {
-//     try {
-//         const { fullName, email, passWord, phoneNumber, avatar, status, position, roleId } = req.body;
 
-//         // Kiểm tra email đã tồn tại chưa
-//         const existingAccount = await Account.findOne({ email: email, deleted: false });
-//         if (existingAccount) {
-//             return res.status(400).json({
-//                 code: 400,
-//                 message: "Tạo tài khoản không thành công, email đã tồn tại"
-//             });
-//         }
-
-//         // Mã hóa mật khẩu
-//         const hashedPassword = await bcrypt.hash(passWord, 10);
-
-//         // Xử lý vị trí
-//         let finalPosition;
-//         if (!position || position === "") {
-//             const count = await Account.countDocuments(); // Phải có await ở đây
-//             finalPosition = count + 1;
-//         } else {
-//             finalPosition = parseInt(position);
-//         }
-
-//         // Tạo mới tài khoản
-//         const newAccount = new Account({
-//             fullName,
-//             email,
-//             passWord: hashedPassword,
-//             phoneNumber,
-//             avatar,
-//             status,
-//             position: finalPosition,
-//             roleId,
-//             createBy: {
-//                 account_id: res.locals.user?.id || null,
-//                 createAt: new Date()
-//             }
-//         });
-
-//         await newAccount.save();
-
-//         return res.status(200).json({
-//             code: 200,
-//             message: "Tạo tài khoản thành công"
-//         });
-
-//     } catch (error) {
-//         console.error("Lỗi tạo tài khoản:", error);
-//         return res.status(500).json({
-//             code: 500,
-//             message: "Đã xảy ra lỗi khi tạo tài khoản",
-//             error: error.message
-//         });
-//     }
-// };
-// ...
-
-// module.exports.create = async (req, res) => {
-//     try {
-//         const { email, passWord, fullName, phoneNumber, avatar, status, position } = req.body;
-
-//         // Kiểm tra email đã tồn tại chưa
-//         const existingEmail = await Account.findOne({ email, deleted: false });
-//         if (existingEmail) {
-//             return res.status(400).json({
-//                 code: 400,
-//                 message: "Tạo tài khoản không thành công: Email đã tồn tại"
-//             });
-//         }
-
-//         // Mã hóa mật khẩu
-//         const hashedPassword = await bcrypt.hash(passWord, 10);
-
-//         // Xử lý vị trí nếu rỗng
-//         let finalPosition = 1;
-//         if (position === "" || position === undefined) {
-//             const count = await Account.countDocuments({ deleted: false });
-//             finalPosition = count + 1;
-//         } else {
-//             finalPosition = parseInt(position);
-//         }
-
-//         // Gán người tạo (dựa theo token auth lưu ở res.locals.user)
-//         req.body.createBy = {
-//             account_id: res.locals.user.id,
-//             createAt: new Date()
-//         }
-
-//         const newAccount = new Account({
-//             fullName,
-//             email,
-//             passWord: hashedPassword,
-//             phoneNumber,
-//             avatar,
-//             status,
-//             position: finalPosition,
-//             createBy: createdBy
-//         });
-
-//         await newAccount.save();
-
-//         res.status(200).json({
-//             code: 200,
-//             message: "Tạo tài khoản thành công",
-//             data: newAccount
-//         });
-
-//     } catch (error) {
-//         console.error("Lỗi khi tạo tài khoản:", error);
-//         res.status(500).json({
-//             code: 500,
-//             message: "Tạo tài khoản thất bại",
-//             error: error.message
-//         });
-//     }
-// };
 
 
 module.exports.edit = async (req, res)=>{

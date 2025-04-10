@@ -13,17 +13,20 @@ module.exports.profile =  async (req, res)=>{
       googleId: user.id, // Sử dụng `id` từ Google để kiểm tra
       deleted: false,
     });
-
+    const count = await User.countDocuments({ deleted: false });
+    const newPosition = count + 1;
     if (!existingUser) {
-      // Nếu người dùng chưa tồn tại, tạo mới
+      // Tự động tăng position theo số lượng user hiện tại
+      
       const newUser = new User({
         googleId: user.id, // ID từ Google
         fullName: user.displayName || "Unknown", // Tên hiển thị từ Google
         email: user.emails && user.emails[0]?.value ? user.emails[0].value : "no-email@example.com", // Email mặc định nếu không có
         avatar: user.photos && user.photos[0]?.value, // Ảnh đại diện từ Google (nếu có)
         token: stringRandomHelper.generateRandomString(20),
-        status: "active", // Trạng thái mặc định
-        deleted: false, // Đánh dấu là chưa bị xóa
+        status: "active", 
+        deleted: false,
+        position: newPosition 
       });
 
       // Lưu người dùng mới vào cơ sở dữ liệu
