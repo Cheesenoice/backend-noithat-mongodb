@@ -1,68 +1,114 @@
 const Product = require("../../../model/product.model");
-const ProductCategory = require("../../../model/product.category.modle")
+// const ProductCategory = require("../../../model/product.category.modle")
 const searchHelper = require("../../../helper/search.helper")
 const paginationHelper = require("../../../helper/pagination.helper")
-const treeHelper = require("../../../helper/category");
-module.exports.product = async (req, res)=>{
+// const treeHelper = require("../../../helper/category");
+const Account = require("../../../model/account.model");
+const { connectors } = require("googleapis/build/src/apis/connectors");
 
+module.exports.product = async (req, res) => {
     const find = {
         deleted: false,
-        status: "active"
+        status: "active",
     }
 
-    // chuc nang phan trang         
-        let initPagination = {
-            currentPage: 1,
-            limitItem: 10
-        }
-        const countProduct = await Product.countDocuments(find);
-        const ojectPanigation = paginationHelper(
-            initPagination,
-            req.query,
-            countProduct
-        )
+    // Phân trang
+    let initPagination = {
+        currentPage: 1,
+        limitItem: 10
+    }
+    const countProduct = await Product.countDocuments(find);
+    const ojectPanigation = paginationHelper(
+        initPagination,
+        req.query,
+        countProduct
+    )
 
-    // tinh nang sap sep theo tieu chi 
+    // Sắp xếp
     const sort = {};
-        if(req.query.sortKey && req.query.sortValue){
-            sort[req.query.sortKey] = req.query.sortValue;
-        } else {
-            sort.position = "desc";
-        }
+    if(req.query.sortKey && req.query.sortValue){
+        sort[req.query.sortKey] = req.query.sortValue;
+    } else {
+        sort.position = "desc";
+    }
 
-    // loc trang thai
+    // Lọc trạng thái
     if(req.query.status){
         find.status = req.query.status
-     }        
+    }        
 
-    // chuc nang tim kiem
+    // Tìm kiếm
     const search = searchHelper(req.query)
     if(search.regex){
         find.title = search.regex
     }
 
-    const product = await Product.find(find).sort(sort).limit(ojectPanigation.limitItem).skip(ojectPanigation.skip)    
-    const record = await ProductCategory.find({
-        deleted: false
-    })
+    // Lấy danh sách sản phẩm
+    const products = await Product.find(find)
+        .sort(sort)
+        .limit(ojectPanigation.limitItem)
+        .skip(ojectPanigation.skip);
 
-    const newProducts = product.map(item => {  // su dung map de tinh toan gia thep phan tram giam gia discountPercentage: phan tram giam gia
-        item.priceNew = (item.price*(100 - item.discountPercentage)/100).toFixed(0); // ham tinh gia theo phan tram giam gia lay ra gia moi 
-        item.priceNew = item.priceNew;        
-        return item;                                                                            // ham toFixed giup loai bo cac dau sau dau phay      
-    })
-    
-    // const newProduct = treeHelper.tree(record)
-    res.json([
-        {
-            data: newProducts,
-            page: req.query.page,
-            limit: req.query.limit,
-            code:200,
-            message: "hiện thị thành công"  
-        },
-        
-    ])
+    // Tính giá mới và thêm thông tin người tạo + người cập nhật gần nhất
+    const productData = await Promise.all(products.map(async (item) => {
+        try {
+            // Tính giá mới theo phần trăm giảm giá
+            const priceNew = (item.price * (100 - item.discountPercentage) / 100).toFixed(0);
+            
+            // Lấy thông tin người tạo
+            let accountFullName = "Unknown";
+            if (item.createBy && item.createBy.account_id) {
+                const user = await Account.findOne({
+                    _id: item.createBy.account_id
+                });
+                accountFullName = user ? user.fullName : "Account Not Found";
+            }
+
+            // Lấy thông tin người cập nhật gần nhất
+            let lastUpdater = {
+                name: "Not updated yet",
+                time: item.createdAt // Mặc định dùng thời gian tạo nếu chưa cập nhật
+            };
+            
+            if (item.updatedBy && item.updatedBy.length > 0) {
+                const lastUpdate = item.updatedBy.slice(-1)[0]; // Lấy bản ghi cập nhật cuối cùng
+                if (lastUpdate && lastUpdate.account_id) {
+                    const userUpdate = await Account.findOne({
+                        _id: lastUpdate.account_id
+                    });
+                    lastUpdater = {
+                        name: userUpdate ? userUpdate.fullName : "Account Not Found",
+                        time: lastUpdate.updatedAt || item.updatedAt
+                    };
+                }
+            }
+
+            return {
+                ...item._doc,
+                priceNew: priceNew,
+                accountFullName: accountFullName,
+                productName: item.title,
+                lastUpdater: lastUpdater // Thông tin người cập nhật gần nhất
+            };
+        } catch (error) {
+            console.error(`Error processing product ${item._id}:`, error);
+            return {
+                ...item._doc,
+                priceNew: item.price.toString(),
+                accountFullName: "Error",
+                productName: item.title,
+                lastUpdater: { name: "Error", time: item.createdAt }
+            };
+        }
+    }));
+
+    res.json([{
+        data: productData,
+        page: req.query.page,
+        limit: req.query.limit,
+        code: 200,
+        message: "Hiển thị thành công"
+    }]);
 }
 
 module.exports.create = async (req, res)=>{
@@ -73,6 +119,10 @@ module.exports.create = async (req, res)=>{
             req.body.position = productCount + 1;            // ngược lại nếu người dùng nhập thì lấy vị trí đó  
         }else {
             req.body.position = parseInt(req.body.position)
+        }
+        req.body.createBy = {
+            account_id: res.locals.user.id,
+            createAt: new Date()
         }
         const product = new Product(req.body);
         await product.save()
@@ -96,6 +146,10 @@ module.exports.delete = async (req, res)=>{
     try {
         const id = req.params.id;
         await Product.updateOne({_id: id}, {deleted: true})
+        // const deletedBy =  {
+        //     account_id: res.locals.user.id,  // tọa thêm trường deletedAt: Date để có thể lấy được thời gian thay đổi trường trong database
+        //     deletedAt: new Date()
+        // }
         res.json({
             code: 200,
             message: "xoa thanh cong"
@@ -112,8 +166,15 @@ module.exports.edit = async (req, res)=>{
     
     try {
         const id = req.params.id;
-        
-        await Product.updateOne({_id: id}, req.body)
+        const updateBy = {
+            account_id: res.locals.user.id,
+            updateAt: new Date()
+        };
+        req.body.updateBy = updateBy;
+        await Product.updateOne({_id: id}, {
+            ...req.body, // lấy ra tát cả ác trường đã tồn tại trong database
+            $push: {updatedBy: updateBy}
+        })
         res.json({
             code:200,
             message: " cap nhat thanh cong"
@@ -149,7 +210,11 @@ module.exports.changeStatus = async (req, res)=>{
     try {
         const id = req.params.id;
         const status = req.body.status;
-        await Product.updateOne({_id: id}, {status: status});
+        const updateBy = {
+            account_id: res.locals.user.id,
+            updateAt: new Date()
+           }
+        await Product.updateOne({_id: id}, {status: status, $push: {updatedBy: updateBy}});
         res.json({
             code: 200,
             message: "thay đổi trạng thái thành công"
@@ -163,10 +228,15 @@ module.exports.changeMulti = async (req, res)=>{
     
     try {
         const{ids, key, value} = req.body
+        const updateBy = {
+            account_id: res.locals.user.id,
+            updateAt: new Date()
+        }
         switch (key) {
             case "status":
                 await Product.updateMany({_id: {$in: ids}}, {
-                    status: value
+                    status: value,
+                    $push: {updatedBy: updateBy}
                 })
                 res.json({
                     code: 200,
@@ -197,3 +267,5 @@ module.exports.changeMulti = async (req, res)=>{
         }) 
     }
 }
+
+

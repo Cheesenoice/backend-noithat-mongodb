@@ -17,6 +17,23 @@ const accountSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    createBy: {
+        account_id: String,
+        createAt: {
+            type: Date,
+            default: Date
+        }
+    },
+    deletedBy: {
+        account_id: String,  // tọa thêm trường deletedAt: Date để có thể lấy được thời gian thay đổi trường trong database
+        deletedAt: Date
+    },
+    updatedBy: [
+        {
+          account_id: String,  // tọa thêm trường deletedAt: Date để có thể lấy được thời gian thay đổi trường trong database
+          updateAt: Date
+        }
+    ],
     deletedAt: Date  // tọa thêm trường deletedAt: Date để có thể lấy được thời gian thay đổi trường trong database
 },
     { timestamps: true }
