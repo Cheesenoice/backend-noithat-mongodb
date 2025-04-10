@@ -20,6 +20,8 @@ const cartMiddleware = require("../../../middleware/cart.middleware")
 const checkoutRouter = require("./checkout.router")
 const paymomoRouter = require("./paymomo.router")
 const productClientRouter = require("./productClient.router")
+const articleCategoryRouter = require("./articleCategory.router")
+const getArticleCategoryRouter = require("./getArticleCategory.router")
 module.exports = (app)=>{
 
     try {
@@ -43,8 +45,10 @@ module.exports = (app)=>{
         app.use(version + '/checkout', authAdmin.authRequireClient, checkoutRouter)
         app.use(version + '/pay', authAdmin.authRequireClient, paymomoRouter)
         app.use(version + '/products', productClientRouter)
+        app.use(version + '/articles', getArticleCategoryRouter)
+        app.use(version + '/articleCategory', authAdmin.authRequire, articleCategoryRouter)
         app.use(version + '/logout', logoutRouter)
-
+        
     } catch (error) {
         console.log(error);
         
