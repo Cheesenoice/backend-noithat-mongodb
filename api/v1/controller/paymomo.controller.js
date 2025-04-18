@@ -3,10 +3,14 @@ const crypto = require("crypto");
 const Pay = require("../../../model/pay.model");
 const Order = require("../../../model/oder.model");
 
+// Load environment variables
+require("dotenv").config();
+
 const momoPayment = (momoOrderId, amount, redirectUrl, ipnUrl) => {
-  const partnerCode = "MOMO";
-  const accessKey = "F8BBA842ECF85";
-  const secretKey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
+  const partnerCode = process.env.MOMO_PARTNER_CODE || "MOMO";
+  const accessKey = process.env.MOMO_ACCESS_KEY || "F8BBA842ECF85";
+  const secretKey =
+    process.env.MOMO_SECRET_KEY || "K951B6PE1waDMi640xX08PD3vg6EkVlz";
   const requestId = `${partnerCode}${Date.now()}`;
   const orderInfo = "Pay with MoMo";
   const requestType = "payWithMethod";
@@ -95,15 +99,20 @@ const paymomo = async (orderId, amount) => {
       );
     }
 
-    const redirectUrl =
-      "https://dc1c-118-71-93-163.ngrok-free.app/api/v1/pay/momo_return"; // Thay bằng URL thực tế
-    const ipnUrl =
-      "https://dc1c-118-71-93-163.ngrok-free.app/api/v1/pay/momo_return"; // Thay bằng URL thực tế
+    const redirectUrl = process.env.MOMO_REDIRECT_URL;
+    const ipnUrl = process.env.MOMO_IPN_URL;
+
+    if (!redirectUrl || !ipnUrl) {
+      throw new Error("Thiếu cấu hình URL MoMo trong biến môi trường");
+    }
 
     // Cập nhật amount vào document pay
     await Pay.updateOne(
       { orderId },
-      { amount: amountNum, requestId: `${momoConfig.partnerCode}${Date.now()}` }
+      {
+        amount: amountNum,
+        requestId: `${process.env.MOMO_PARTNER_CODE}${Date.now()}`,
+      }
     );
 
     // Gọi MoMo API
@@ -155,7 +164,7 @@ const callbackPay = async (req, res) => {
         }
       );
       // Redirect về trang /thank-you trên frontend
-      return res.redirect("https://yourfrontend.com/thank-you"); // Thay bằng URL frontend thực tế
+      return res.redirect(process.env.FRONTEND_THANK_YOU_URL);
     } else {
       // Thanh toán thất bại
       await Order.updateOne(
@@ -192,7 +201,7 @@ module.exports = {
 
 // Để tương thích với mã cũ
 const momoConfig = {
-  partnerCode: "MOMO",
-  accessKey: "F8BBA842ECF85",
-  secretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz",
+  partnerCode: process.env.MOMO_PARTNER_CODE || "MOMO",
+  accessKey: process.env.MOMO_ACCESS_KEY || "F8BBA842ECF85",
+  secretKey: process.env.MOMO_SECRET_KEY || "K951B6PE1waDMi640xX08PD3vg6EkVlz",
 };
