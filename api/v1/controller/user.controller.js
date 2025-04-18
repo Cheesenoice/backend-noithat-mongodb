@@ -1,252 +1,229 @@
-const User = require("../../../model/user.modle");
-const randomString = require("../../../helper/randomString")
-const md5 = require('md5');
-const sendMail = require("../../../helper/sendMail.helper")
-const ForgotPassword = require("../../../model/sendOtp.model")
+const User = require("../../../model/user.model");
+const randomString = require("../../../helper/randomString");
+const md5 = require("md5");
+const sendMail = require("../../../helper/sendMail.helper");
+const ForgotPassword = require("../../../model/sendOtp.model");
 module.exports.register = async (req, res) => {
-    try {
-        // Kiểm tra email đã tồn tại hay chưa
-        const exisEmail = await User.findOne({
-            email: req.body.email,
-            deleted: false,
-        });
+  try {
+    // Kiểm tra email đã tồn tại hay chưa
+    const exisEmail = await User.findOne({
+      email: req.body.email,
+      deleted: false,
+    });
 
-        if (exisEmail) {
-            return res.json({
-                code: 404,
-                message: "Email đã bị trùng"
-            });
-        }
-
-        if (exisName) {
-            return res.json({
-                code: 404,
-                message: "Tên đăng nhập đã bị trùng"
-            });
-        }
-
-        // Kiểm tra số điện thoại đã tồn tại hay chưa
-        const exisPhone = await User.findOne({
-            phoneNumber: req.body.phoneNumber,
-            deleted: false,
-        });
-
-        if (exisPhone) {
-            return res.json({
-                code: 404,
-                message: "Số điện thoại đã bị trùng"
-            });
-        }
-
-        // Tự động tăng position theo số lượng user hiện tại
-        const count = await User.countDocuments({ deleted: false });
-        const newPosition = count + 1;
-
-        // Tạo user mới
-        const user = new User({
-            fullName: req.body.fullName,
-            email: req.body.email,
-            phoneNumber: req.body.phoneNumber,
-            passWord: md5(req.body.passWord),
-            token: randomString.generateRandomString(20),
-            position: newPosition,
-            status: "active"
-        });
-
-        await user.save();
-
-        res.cookie("token", user.token);
-
-        res.json({
-            code: 200,
-            message: "Đăng ký tài khoản thành công",
-        });
-
-    } catch (error) {
-        console.error("Lỗi khi đăng ký:", error);
-        res.json({
-            code: 500,
-            message: "Đăng ký tài khoản không thành công"
-        });
+    if (exisEmail) {
+      return res.json({
+        code: 404,
+        message: "Email đã bị trùng",
+      });
     }
+
+    if (exisName) {
+      return res.json({
+        code: 404,
+        message: "Tên đăng nhập đã bị trùng",
+      });
+    }
+
+    // Kiểm tra số điện thoại đã tồn tại hay chưa
+    const exisPhone = await User.findOne({
+      phoneNumber: req.body.phoneNumber,
+      deleted: false,
+    });
+
+    if (exisPhone) {
+      return res.json({
+        code: 404,
+        message: "Số điện thoại đã bị trùng",
+      });
+    }
+
+    // Tự động tăng position theo số lượng user hiện tại
+    const count = await User.countDocuments({ deleted: false });
+    const newPosition = count + 1;
+
+    // Tạo user mới
+    const user = new User({
+      fullName: req.body.fullName,
+      email: req.body.email,
+      phoneNumber: req.body.phoneNumber,
+      passWord: md5(req.body.passWord),
+      token: randomString.generateRandomString(20),
+      position: newPosition,
+      status: "active",
+    });
+
+    await user.save();
+
+    res.cookie("token", user.token);
+
+    res.json({
+      code: 200,
+      message: "Đăng ký tài khoản thành công",
+    });
+  } catch (error) {
+    console.error("Lỗi khi đăng ký:", error);
+    res.json({
+      code: 500,
+      message: "Đăng ký tài khoản không thành công",
+    });
+  }
+};
+module.exports.login = async (req, res) => {
+  try {
+    const { email, passWord } = req.body;
+
+    // Tìm user theo email
+    const user = await User.findOne({
+      email: email,
+      deleted: false,
+      status: "active",
+    });
+
+    // Kiểm tra user tồn tại
+    if (!user) {
+      return res.json({
+        code: 404,
+        message: "Email không tồn tại hoặc tài khoản bị khóa",
+      });
+    }
+
+    // Kiểm tra mật khẩu
+    if (md5(passWord) !== user.passWord) {
+      return res.json({
+        code: 404,
+        message: "Mật khẩu không đúng",
+      });
+    }
+
+    // Tạo và lưu token
+    const token = user.token;
+    res.cookie("token", token);
+
+    res.json({
+      code: 200,
+      message: "Đăng nhập thành công",
+      token: token,
+    });
+  } catch (error) {
+    console.error("Lỗi khi đăng nhập:", error);
+    res.json({
+      code: 500,
+      message: "Đăng nhập không thành công",
+      error: error.message,
+    });
+  }
 };
 
-
-
-module.exports.login = async (req, res)=>{
-   try {
-    const{fullName, email, passWord, phoneNumber} = req.body;
+module.exports.forgotPassword = async (req, res) => {
+  try {
+    console.log(req.body);
+    const email = req.body.email;
     const user = await User.findOne({
-        fullName: fullName,
-        email: email,
-        phoneNumber: phoneNumber,
-        deleted: false,
-        status: "active"
-
-    })
-    
-    if(!user){
-        res.json({
-            code: 404,
-            message: "Sai thông tin đăng nhập khong thành công, hoặc tài khoản của bạn bị khóa "
-        })
-
-        return;
-    }
-
-    if (fullName != user.fullName){
-        res.json({
-            code: 404,
-            message: "Sai tên đăng nhập đăng nhập khong thành công"
-        })
-
-        return;
-    }
-
-    if (phoneNumber != user.phoneNumber){
-        res.json({
-            code: 404,
-            message: "Sai số điện thoại đăng nhập khong thành công"
-        })
-        return;
-    }
-
-    if (md5(passWord) != user.passWord){
-        res.json({
-            code: 404,
-            message: "Sai mật khẩu đăng nhập khong thành công"
-        })
-        return;
-    }
-
-    const token = user.token;
-    res.cookie("token", token)
-
-    res.json({
-        code: 200,
-        message: " Đăng nhập thành công",
-        token: token
-    })
-   } catch (error) {
-    res.json({
+      email: email,
+      deleted: false,
+    });
+    if (!user) {
+      res.json({
         code: 404,
-        message: " Đăng nhập Không thành công",
-        error: error
-    })
-   }
-}
-
-module.exports.forgotPassword = async (req, res)=>{
-   
-    try {
-        console.log(req.body);
-        const email = req.body.email;
-        const user = await User.findOne({
-            email: email,
-            deleted: false
-        })
-        if(!user){
-            res.json({
-                code: 404,
-                message: "Email không tồn tại"
-            })
-        }
-        
-        // xử lý tạo ra mã otp 
-        const otp = randomString.generateRandomNumber(8)
-    
-        const timeExprice = 2; // thời gian hết hạn
-        const ojectForgotPassword = {
-            email,
-            otp,
-            ExpriceAt: Date.now() + timeExprice*60
-        }
-        
-        const newPassword = new ForgotPassword(ojectForgotPassword);
-        await newPassword.save()
-    
-        //gửi OTP qua email
-        const subiect = "Mã OTP xác minh lấy lại mật khẩu"
-        const html = `<spa>vui lòng không chi sẽ mã với bất kì ai, mã của ban là: ${otp}, thời gian hết hạn ${timeExprice} phút</spa>`
-        
-        sendMail.sendMail(email, subiect, html)
-        res.json({
-            code: 200, 
-            message: "Đã gửi OTP qua mail"
-        })
-    } catch (error) {
-        res.json({
-            code: 404
-        })
+        message: "Email không tồn tại",
+      });
     }
-    
-}
 
-module.exports.sendOtp = async (req, res)=>{
-   try {
+    // xử lý tạo ra mã otp
+    const otp = randomString.generateRandomNumber(8);
+
+    const timeExprice = 2; // thời gian hết hạn
+    const ojectForgotPassword = {
+      email,
+      otp,
+      ExpriceAt: Date.now() + timeExprice * 60,
+    };
+
+    const newPassword = new ForgotPassword(ojectForgotPassword);
+    await newPassword.save();
+
+    //gửi OTP qua email
+    const subiect = "Mã OTP xác minh lấy lại mật khẩu";
+    const html = `<spa>vui lòng không chi sẽ mã với bất kì ai, mã của ban là: ${otp}, thời gian hết hạn ${timeExprice} phút</spa>`;
+
+    sendMail.sendMail(email, subiect, html);
+    res.json({
+      code: 200,
+      message: "Đã gửi OTP qua mail",
+    });
+  } catch (error) {
+    res.json({
+      code: 404,
+    });
+  }
+};
+
+module.exports.sendOtp = async (req, res) => {
+  try {
     const email = req.body.email;
     const otp = req.body.otp;
     const result = await ForgotPassword.findOne({
-        email: email,
-        otp: otp
-    })
+      email: email,
+      otp: otp,
+    });
 
-    if(!result){
-        res.joson({
-            code: 404,
-            message: "Mã xác thực không dúng "
-        })
-    }
-
-    const user = await User.findOne({
-        email: email
-    })
-
-    const token = user.token
-    res.cookie("token", token)
-
-    res.json({
-        code: 200,
-        message: "Xác thực thành công",
-        token
-    })
-   } catch (error) {
-    res.json({
-        code: 404
-    })
-   }
-}
-
-module.exports.resetPassword = async (req, res)=>{
-   try {
-    const token = req.body.token;
-    const passWord = req.body.passWord
-
-    const user = await User.findOne({
-        token: token, 
-        deleted: false
-    })
-    if (md5(passWord) === user.passWord){
-        res.json({
-            code: 404,
-            message: "Mật khẩu bị trùng với mật khẩu hiện tại"
-        })
-        return;
-    }
-
-    await User.updateOne({token: token}, {passWord: md5(passWord)});
-    res.json({
-        code: 200,
-        message: "thay đổi mật khẩu thành công",
-        token: token
-    })
-   } catch (error) {
-    res.json({
+    if (!result) {
+      res.joson({
         code: 404,
-        error: error
-    })
-   }
-}
+        message: "Mã xác thực không dúng ",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email,
+    });
+
+    const token = user.token;
+    res.cookie("token", token);
+
+    res.json({
+      code: 200,
+      message: "Xác thực thành công",
+      token,
+    });
+  } catch (error) {
+    res.json({
+      code: 404,
+    });
+  }
+};
+
+module.exports.resetPassword = async (req, res) => {
+  try {
+    const token = req.body.token;
+    const passWord = req.body.passWord;
+
+    const user = await User.findOne({
+      token: token,
+      deleted: false,
+    });
+    if (md5(passWord) === user.passWord) {
+      res.json({
+        code: 404,
+        message: "Mật khẩu bị trùng với mật khẩu hiện tại",
+      });
+      return;
+    }
+
+    await User.updateOne({ token: token }, { passWord: md5(passWord) });
+    res.json({
+      code: 200,
+      message: "thay đổi mật khẩu thành công",
+      token: token,
+    });
+  } catch (error) {
+    res.json({
+      code: 404,
+      error: error,
+    });
+  }
+};
 
 // module.exports.list = async(req, res)=>{
 

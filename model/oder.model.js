@@ -1,25 +1,28 @@
-const moogose = require("mongoose")
+const mongoose = require("mongoose");
 
-const orderSchema = new moogose.Schema({
-   cartId: String,
-   user_infor: [
-    {
-        fullName: String,
-        phone: Number,
-        address: String
-    }
-   ],
-   product: [
-     {
+const orderSchema = new mongoose.Schema(
+  {
+    cartId: String,
+    userId: { type: String }, // Add this line
+    user_infor: {
+      name: String,
+      email: String,
+      address: String,
+      phone: String,
+    },
+    product: [
+      {
         product_id: String,
         price: Number,
         discountPercentage: Number,
-        quantity: Number
-     }
-   ]
-}, 
-{timestamps: true})
+        quantity: Number,
+      },
+    ],
+    paymentMethod: String,
+    paymentStatus: String,
+  },
+  { timestamps: true }
+);
 
-const Order = moogose.model("Order", orderSchema, "order")
-
+const Order = mongoose.model("Order", orderSchema, "order");
 module.exports = Order;

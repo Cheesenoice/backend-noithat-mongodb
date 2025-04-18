@@ -1,22 +1,22 @@
-// const Cart = require("../model/catrt.modle")
+// const Cart = require("../model/cart.modle")
 // module.exports.cart = async (req, res, next)=>{
 //     if(!req.cookies.cartId){
 //         const cart = new Cart();
-//         await cart.save()                  // sử lý tạo ra 1 id của giỏ hàng tồn tại trên cookie 
+//         await cart.save()                  // sử lý tạo ra 1 id của giỏ hàng tồn tại trên cookie
 //         const expiresTime = 1000 * 60 * 60 * 24 * 365;
 //         res.cookie("cartId", cart.id, {expires: new Date(Date.now() + expiresTime )})
 //     }else {
 //         const cart = await Cart.findOne({
 //             _id: req.cookies.cartId
 //         })
-        
+
 //         cart.totalQuantity = cart.product.reduce((sum, item)=> sum + item.quantity, 0)
 //         res.locals.minicart = cart
 //     }
 //     next()
 // }
 
-const Cart = require("../model/catrt.modle");
+const Cart = require("../model/cart.model");
 
 module.exports.cart = async (req, res, next) => {
   try {
@@ -30,7 +30,7 @@ module.exports.cart = async (req, res, next) => {
       const expiresTime = 1000 * 60 * 60 * 24 * 365; // 1 năm
       res.cookie("cartId", cart._id.toString(), {
         expires: new Date(Date.now() + expiresTime),
-        httpOnly: true
+        httpOnly: false,
       });
     } else {
       // Nếu có cartId, tìm giỏ hàng trong database
@@ -44,13 +44,16 @@ module.exports.cart = async (req, res, next) => {
         const expiresTime = 1000 * 60 * 60 * 24 * 365;
         res.cookie("cartId", cart._id.toString(), {
           expires: new Date(Date.now() + expiresTime),
-          httpOnly: true
+          httpOnly: false,
         });
       }
     }
 
     // Tính tổng số lượng sản phẩm
-    cart.totalQuantity = cart.product.reduce((sum, item) => sum + item.quantity, 0);
+    cart.totalQuantity = cart.product.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
 
     // Gán giỏ hàng vào biến toàn cục để view hoặc middleware sau có thể dùng
     res.locals.minicart = cart;
