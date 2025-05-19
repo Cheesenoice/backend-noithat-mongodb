@@ -44,6 +44,28 @@ module.exports.edit = async (req, res) => {
       delete req.body.passWord; // Không cập nhật mật khẩu nếu không nhập mới
     }
 
+    // Xử lý địa chỉ
+    if (req.body.address && req.body.address.length > 0) {
+      let defaultAddressIndex = -1;
+      // Tìm xem có địa chỉ nào được đánh dấu là mặc định trong request không
+      req.body.address.forEach((addr, index) => {
+        if (addr.isDefault === true) {
+          defaultAddressIndex = index;
+        }
+      });
+
+      // Nếu không có địa chỉ nào được đánh dấu mặc định, đặt địa chỉ đầu tiên làm mặc định
+      if (defaultAddressIndex === -1) {
+        defaultAddressIndex = 0;
+      }
+
+      // Cập nhật lại mảng địa chỉ, đảm bảo chỉ có một địa chỉ mặc định
+      req.body.address = req.body.address.map((addr, index) => ({
+        ...addr,
+        isDefault: index === defaultAddressIndex,
+      }));
+    }
+
     // Cập nhật tài khoản
     const result = await Account.updateOne({ token: token }, req.body);
 

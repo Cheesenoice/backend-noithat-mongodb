@@ -3,242 +3,183 @@ const randomString = require("../../../helper/randomString");
 const md5 = require("md5");
 const sendMail = require("../../../helper/sendMail.helper");
 const ForgotPassword = require("../../../model/sendOtp.model");
+
 module.exports.register = async (req, res) => {
   try {
-    // Kiểm tra email đã tồn tại hay chưa
-    const exisEmail = await User.findOne({
-      email: req.body.email,
-      deleted: false,
-    });
+    const { fullName, email, phoneNumber, passWord } = req.body;
+
+    const [exisEmail, exisPhone] = await Promise.all([
+      User.findOne({ email, deleted: false }),
+      User.findOne({ phoneNumber, deleted: false }),
+    ]);
 
     if (exisEmail) {
-      return res.json({
-        code: 404,
-        message: "Email đã bị trùng",
-      });
+      return res.status(400).json({ code: 400, message: "Email đã tồn tại" });
     }
-
-    if (exisName) {
-      return res.json({
-        code: 404,
-        message: "Tên đăng nhập đã bị trùng",
-      });
-    }
-
-    // Kiểm tra số điện thoại đã tồn tại hay chưa
-    const exisPhone = await User.findOne({
-      phoneNumber: req.body.phoneNumber,
-      deleted: false,
-    });
 
     if (exisPhone) {
-      return res.json({
-        code: 404,
-        message: "Số điện thoại đã bị trùng",
-      });
+      return res
+        .status(400)
+        .json({ code: 400, message: "Số điện thoại đã tồn tại" });
     }
 
-    // Tự động tăng position theo số lượng user hiện tại
     const count = await User.countDocuments({ deleted: false });
-    const newPosition = count + 1;
-
-    // Tạo user mới
     const user = new User({
-      fullName: req.body.fullName,
-      email: req.body.email,
-      phoneNumber: req.body.phoneNumber,
-      passWord: md5(req.body.passWord),
+      fullName,
+      email,
+      phoneNumber,
+      passWord: md5(passWord),
       token: randomString.generateRandomString(20),
-      position: newPosition,
+      position: count + 1,
       status: "active",
     });
 
     await user.save();
-
     res.cookie("token", user.token);
 
-    res.json({
-      code: 200,
-      message: "Đăng ký tài khoản thành công",
-    });
+    res.json({ code: 200, message: "Đăng ký tài khoản thành công" });
   } catch (error) {
-    console.error("Lỗi khi đăng ký:", error);
-    res.json({
-      code: 500,
-      message: "Đăng ký tài khoản không thành công",
-    });
+    console.error("Lỗi đăng ký:", error);
+    res
+      .status(500)
+      .json({ code: 500, message: "Đăng ký tài khoản không thành công" });
   }
 };
+
 module.exports.login = async (req, res) => {
   try {
     const { email, passWord } = req.body;
 
-    // Tìm user theo email
     const user = await User.findOne({
-      email: email,
+      email,
       deleted: false,
       status: "active",
     });
-
-    // Kiểm tra user tồn tại
     if (!user) {
-      return res.json({
-        code: 404,
-        message: "Email không tồn tại hoặc tài khoản bị khóa",
-      });
+      return res
+        .status(404)
+        .json({
+          code: 404,
+          message: "Email không tồn tại hoặc tài khoản bị khóa",
+        });
     }
 
-    // Kiểm tra mật khẩu
-    if (md5(passWord) !== user.passWord) {
-      return res.json({
-        code: 404,
-        message: "Mật khẩu không đúng",
-      });
+    if (user.passWord !== md5(passWord)) {
+      return res
+        .status(400)
+        .json({ code: 400, message: "Mật khẩu không đúng" });
     }
 
-    // Tạo và lưu token
-    const token = user.token;
-    res.cookie("token", token);
-
-    res.json({
-      code: 200,
-      message: "Đăng nhập thành công",
-      token: token,
-    });
+    res.cookie("token", user.token);
+    res.json({ code: 200, message: "Đăng nhập thành công", token: user.token });
   } catch (error) {
-    console.error("Lỗi khi đăng nhập:", error);
-    res.json({
-      code: 500,
-      message: "Đăng nhập không thành công",
-      error: error.message,
-    });
+    console.error("Lỗi đăng nhập:", error);
+    res.status(500).json({ code: 500, message: "Đăng nhập không thành công" });
   }
 };
 
 module.exports.forgotPassword = async (req, res) => {
   try {
-    console.log(req.body);
-    const email = req.body.email;
-    const user = await User.findOne({
-      email: email,
-      deleted: false,
-    });
+    const { email } = req.body;
+
+    const user = await User.findOne({ email, deleted: false });
     if (!user) {
-      res.json({
-        code: 404,
-        message: "Email không tồn tại",
-      });
+      return res
+        .status(404)
+        .json({ code: 404, message: "Email không tồn tại" });
     }
 
-    // xử lý tạo ra mã otp
-    const otp = randomString.generateRandomNumber(8);
+    const otp = randomString.generateRandomNumber(6); // thường dùng 6 số
+    const expireTime = 2 * 60 * 1000; // 2 phút
 
-    const timeExprice = 2; // thời gian hết hạn
-    const ojectForgotPassword = {
+    await ForgotPassword.create({
       email,
       otp,
-      ExpriceAt: Date.now() + timeExprice * 60,
-    };
-
-    const newPassword = new ForgotPassword(ojectForgotPassword);
-    await newPassword.save();
-
-    //gửi OTP qua email
-    const subiect = "Mã OTP xác minh lấy lại mật khẩu";
-    const html = `<spa>vui lòng không chi sẽ mã với bất kì ai, mã của ban là: ${otp}, thời gian hết hạn ${timeExprice} phút</spa>`;
-
-    sendMail.sendMail(email, subiect, html);
-    res.json({
-      code: 200,
-      message: "Đã gửi OTP qua mail",
+      ExpriceAt: Date.now() + expireTime,
     });
+
+    const subject = "Mã OTP xác minh lấy lại mật khẩu";
+    const html = `<p>Vui lòng không chia sẻ mã với bất kỳ ai. Mã OTP của bạn là: <b>${otp}</b>. Thời gian hết hạn: 2 phút.</p>`;
+
+    sendMail.sendMail(email, subject, html);
+    res.json({ code: 200, message: "OTP đã được gửi tới email của bạn" });
   } catch (error) {
-    res.json({
-      code: 404,
-    });
+    console.error("Lỗi gửi OTP:", error);
+    res.status(500).json({ code: 500, message: "Không thể gửi OTP" });
   }
 };
 
 module.exports.sendOtp = async (req, res) => {
   try {
-    const email = req.body.email;
-    const otp = req.body.otp;
-    const result = await ForgotPassword.findOne({
-      email: email,
-      otp: otp,
-    });
+    const { email, otp } = req.body;
 
-    if (!result) {
-      res.joson({
-        code: 404,
-        message: "Mã xác thực không dúng ",
-      });
+    const record = await ForgotPassword.findOne({ email, otp });
+    if (!record || Date.now() > record.ExpriceAt) {
+      return res
+        .status(400)
+        .json({ code: 400, message: "Mã OTP không hợp lệ hoặc đã hết hạn" });
     }
 
-    const user = await User.findOne({
-      email: email,
-    });
+    const user = await User.findOne({ email, deleted: false });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ code: 404, message: "Người dùng không tồn tại" });
+    }
 
-    const token = user.token;
-    res.cookie("token", token);
-
+    res.cookie("token", user.token);
     res.json({
       code: 200,
-      message: "Xác thực thành công",
-      token,
+      message: "Xác thực OTP thành công",
+      token: user.token,
     });
   } catch (error) {
-    res.json({
-      code: 404,
-    });
+    console.error("Lỗi xác thực OTP:", error);
+    res.status(500).json({ code: 500, message: "Lỗi xác thực OTP" });
   }
 };
 
 module.exports.resetPassword = async (req, res) => {
   try {
-    const token = req.body.token;
-    const passWord = req.body.passWord;
+    const { token, passWord } = req.body;
 
-    const user = await User.findOne({
-      token: token,
-      deleted: false,
-    });
-    if (md5(passWord) === user.passWord) {
-      res.json({
-        code: 404,
-        message: "Mật khẩu bị trùng với mật khẩu hiện tại",
-      });
-      return;
+    const user = await User.findOne({ token, deleted: false });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ code: 404, message: "Không tìm thấy người dùng" });
     }
 
-    await User.updateOne({ token: token }, { passWord: md5(passWord) });
-    res.json({
-      code: 200,
-      message: "thay đổi mật khẩu thành công",
-      token: token,
-    });
+    if (md5(passWord) === user.passWord) {
+      return res
+        .status(400)
+        .json({
+          code: 400,
+          message: "Mật khẩu mới không được trùng với mật khẩu cũ",
+        });
+    }
+
+    user.passWord = md5(passWord);
+    await user.save();
+
+    res.json({ code: 200, message: "Thay đổi mật khẩu thành công" });
   } catch (error) {
-    res.json({
-      code: 404,
-      error: error,
-    });
+    console.error("Lỗi reset mật khẩu:", error);
+    res.status(500).json({ code: 500, message: "Thay đổi mật khẩu thất bại" });
   }
 };
 
-// module.exports.list = async(req, res)=>{
-
-//     try {
-//         const user = await User.find({
-//             deleted: false
-//         }).select("-token -passWord")
-//         res.json({
-//             data: user,
-//             code:200
-//         })
-//     } catch (error) {
-//         res.json({
-//             code: 404,
-//             error: error
-//         })
-//     }
-// }
+// Lấy danh sách người dùng
+module.exports.list = async (req, res) => {
+  try {
+    const users = await User.find({ deleted: false }).select(
+      "-token -passWord"
+    );
+    res.json({ code: 200, data: users });
+  } catch (error) {
+    console.error("Lỗi lấy danh sách người dùng:", error);
+    res
+      .status(500)
+      .json({ code: 500, message: "Không thể lấy danh sách người dùng" });
+  }
+};

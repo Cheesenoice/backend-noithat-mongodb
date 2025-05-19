@@ -2,97 +2,17 @@ const User = require("../../../model/user.model");
 const searchHelper = require("../../../helper/search.helper");
 const paginationHelper = require("../../../helper/pagination.helper");
 const Account = require("../../../model/account.model");
-// module.exports.listUser = async(req, res)=>{
-//     try {
-//         const find = {
-//             deleted: false,
-//             status: "active"
-//         }
-//         // Lọc theo trạng thái nếu có
-//         if (req.query.status) {
-//             find.status = req.query.status;
-//         }
-
-//         // Tìm kiếm theo title
-//         const search = searchHelper(req.query);
-//         if (search.regex) {
-//             find.title = search.regex;
-//         }
-
-//         // Phân trang
-//         let initPagination = {
-//             currentPage: 1,
-//             limitItem: 8
-//         };
-
-//         const countProduct = await User.countDocuments(find);
-//         const ojectPanigation = paginationHelper(
-//             initPagination,
-//             req.query,
-//             countProduct
-//         );
-
-//         // Sắp xếp
-//         const sort = {};
-//         if (req.query.sortKey && req.query.sortValue) {
-//             sort[req.query.sortKey] = req.query.sortValue;
-//         } else {
-//             sort.position = "desc";
-//         }
-//         const user = await User.find(find).sort(sort).limit(ojectPanigation.limitItem).skip(ojectPanigation.skip).select("-token -passWord")
-//         res.json({
-//             data: user,
-//             code:200
-//         })
-//         const finalUsertList = await Promise.all(user.map(async (record) => {
-//              // Lấy thông tin người cập nhật gần nhất
-//             let lastUpdater = {
-//                 name: "Not updated yet",
-//                 time: record.createdAt // Mặc định dùng thời gian tạo nếu chưa cập nhật
-//             };
-
-//             if (record.updatedBy && record.updatedBy.length > 0) {
-//                 const lastUpdate = record.updatedBy.slice(-1)[0]; // Lấy bản ghi cập nhật cuối cùng
-//                 if (lastUpdate && lastUpdate.account_id) {
-//                     const userUpdate = await Account.findOne({
-//                         _id: lastUpdate.account_id
-//                     });
-//                     lastUpdater = {
-//                         name: userUpdate ? userUpdate.fullName : "Account Not Found",
-//                         time: lastUpdate.updatedAt || record.updatedAt
-//                     };
-//                 }
-//             }
-//             return {
-//                 ...record._doc,
-//                 lastUpdater: lastUpdater
-//             };
-//         }));
-
-//         // Trả kết quả
-//         res.json({
-//             data: finalUsertList,
-//             code: 200,
-//             message: "Thành công"
-//         });
-//     } catch (error) {
-//         res.json({
-//             code: 404,
-//             error: error
-//         })
-//     }
-// }
 module.exports.listUser = async (req, res) => {
   try {
     const find = {
       deleted: false,
-      status: "active",
+      // status: "active", // Remove this line to not filter by status
     };
 
     // Lọc theo trạng thái nếu có
-    if (req.query.status) {
-      find.status = req.query.status;
-    }
+    // if (req.query.status) {
+    //   find.status = req.query.status;
+    // }
 
     // Tìm kiếm theo title
     const search = searchHelper(req.query);

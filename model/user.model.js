@@ -17,6 +17,12 @@ const userSchema = new mongoose.Schema(
     position: Number,
     // Các trường cũ cho Google OAuth (có thể giữ lại để tương thích ngược)
     googleId: String,
+    address: [
+      {
+        fullAddress: String, // VD: "123 Lê Lợi, Phường 5, Quận 3, TP.HCM"
+        isDefault: Boolean,
+      },
+    ],
 
     deleted: {
       type: Boolean,

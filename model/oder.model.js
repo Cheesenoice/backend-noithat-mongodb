@@ -20,6 +20,13 @@ const orderSchema = new mongoose.Schema(
     ],
     paymentMethod: String,
     paymentStatus: String,
+    orderStatus: [
+      {
+        status: String,
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
+    shippingFee: Number,
   },
   { timestamps: true }
 );

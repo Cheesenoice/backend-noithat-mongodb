@@ -46,7 +46,7 @@ module.exports = (app) => {
       authClient.authRequire,
       myaccountClient
     );
-    app.use(version + "/my-order", authClient.authRequire, orderRouter); // Add this line
+    app.use(version + "/order", orderRouter); // Add this line
     app.use(version + "/home", homeRouter);
     app.use(version + "/blog", blogFeatured);
     app.use(version + "/", loginGoogle);

@@ -1,8 +1,14 @@
 const express = require("express");
 const router = express.Router();
+const authAdmin = require("../../../middleware/authAdmin.middleware copy");
 const orderController = require("../controller/order.controller");
 
-// Route to get all orders for the logged-in user
-router.get("/", orderController.myOrder);
+router.get("/all-orders", orderController.getAllOrders); // Route to get all orders
+router.get("/my-order", orderController.myOrder);
+router.put(
+  "/update-status/:id",
+  authAdmin.authRequire,
+  orderController.updateStatus
+);
 
 module.exports = router;
