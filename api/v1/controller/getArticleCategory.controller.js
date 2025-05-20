@@ -73,15 +73,6 @@ module.exports.detail = async (req, res) => {
     }
 
     // Gắn category nếu có
-    if (article.articleCategory) {
-      const category = await ArticleCategory.findOne({
-        _id: article.articleCategory,
-        deleted: false,
-        status: "active",
-      });
-
-      article.category = category || null;
-    }
 
     // Lấy danh sách sản phẩm nổi bật
     const relatedArticle = await Article.find({
@@ -94,8 +85,8 @@ module.exports.detail = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        article,
-        relatedArticle,
+        article: article || null,
+        relatedArticle: relatedArticle || [],
       },
     });
   } catch (error) {
