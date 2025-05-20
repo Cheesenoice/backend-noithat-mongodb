@@ -24,6 +24,7 @@ const articleCategoryRouter = require("./articleCategory.router");
 const getArticleCategoryRouter = require("./getArticleCategory.router");
 const managerUserAccountRouter = require("./managerUserAccount.router");
 const orderRouter = require("./order.router"); // Add this line
+const dashboardRouter = require("./dashboard.router");
 module.exports = (app) => {
   try {
     app.use(cartMiddleware.cart);
@@ -67,6 +68,7 @@ module.exports = (app) => {
       managerUserAccountRouter
     );
     app.use(version + "/logout", logoutRouter);
+    app.use(version + "/dashboard", dashboardRouter);
   } catch (error) {
     console.log(error);
   }

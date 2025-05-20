@@ -180,6 +180,29 @@ module.exports.edit = async (req, res) => {
 module.exports.delete = async (req, res) => {
   try {
     const id = req.params.id;
+    const Product = require("../../../model/product.model");
+    // Kiểm tra sản phẩm thuộc category này
+    const productCount = await Product.countDocuments({
+      product_category_id: id,
+      deleted: false,
+    });
+    if (productCount > 0) {
+      return res.json({
+        code: 400,
+        message: "Không thể xóa: vẫn còn sản phẩm thuộc danh mục này!",
+      });
+    }
+    // Kiểm tra subcategory
+    const subCategoryCount = await ProductCategory.countDocuments({
+      parent_id: id,
+      deleted: false,
+    });
+    if (subCategoryCount > 0) {
+      return res.json({
+        code: 400,
+        message: "Không thể xóa: danh mục này vẫn còn danh mục con!",
+      });
+    }
     await ProductCategory.updateOne({ _id: id }, { deleted: true });
     res.json({
       code: 200,

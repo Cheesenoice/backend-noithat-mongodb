@@ -47,6 +47,29 @@ module.exports.getAllOrders = async (req, res) => {
   }
 };
 
+module.exports.getOrdersByUserId = async (req, res) => {
+  try {
+    const { userid } = req.params;
+    if (!userid) {
+      return res.status(400).json({ success: false, message: "Thiếu userId" });
+    }
+    const orders = await Order.find({ userId: userid }).sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      message: "Lấy danh sách đơn hàng của user thành công",
+      data: orders,
+    });
+  } catch (error) {
+    console.error("GetOrdersByUserId API Error:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Lỗi server khi lấy đơn hàng của user",
+      });
+  }
+};
+
 module.exports.updateStatus = async (req, res) => {
   try {
     const { id: orderId } = req.params;
