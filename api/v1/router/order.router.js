@@ -15,5 +15,6 @@ router.put(
   authAdmin.authRequire,
   orderController.updateStatus
 );
+router.put("/my-order/cancel/:id", orderController.cancelMyOrder);
 
 module.exports = router;

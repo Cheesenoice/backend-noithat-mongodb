@@ -3,6 +3,7 @@ const searchHelper = require("../../../helper/search.helper");
 const paginationHelper = require("../../../helper/pagination.helper");
 const createTreeHelper = require("../../../helper/category");
 const Account = require("../../../model/account.model");
+
 module.exports.productsCategory = async (req, res) => {
   try {
     const find = {
@@ -43,10 +44,7 @@ module.exports.productsCategory = async (req, res) => {
     );
 
     // Truy vấn danh mục theo điều kiện tìm kiếm, sắp xếp, phân trang
-    const productCategories = await ProductCategory.find(find)
-      .sort(sort)
-      .limit(pagination.limitItem)
-      .skip(pagination.skip);
+    const productCategories = await ProductCategory.find(find).sort(sort);
 
     const productData = await Promise.all(
       productCategories.map(async (item) => {

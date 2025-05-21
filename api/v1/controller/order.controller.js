@@ -61,12 +61,10 @@ module.exports.getOrdersByUserId = async (req, res) => {
     });
   } catch (error) {
     console.error("GetOrdersByUserId API Error:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Lỗi server khi lấy đơn hàng của user",
-      });
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy đơn hàng của user",
+    });
   }
 };
 
@@ -142,5 +140,70 @@ module.exports.updateStatus = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Lỗi server khi cập nhật trạng thái" });
+  }
+};
+
+module.exports.cancelMyOrder = async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "User not logged in" });
+    }
+    const user = await Account.findOne({ token: token, deleted: false });
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid token" });
+    }
+    const userId = user._id;
+    const { id: orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "Thiếu orderId" });
+    }
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy đơn hàng" });
+    }
+    if (String(order.userId) !== String(userId)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Bạn không có quyền hủy đơn này" });
+    }
+    order.orderStatus = order.orderStatus || [];
+    const currentStatus =
+      order.orderStatus[order.orderStatus.length - 1]?.status;
+    if (
+      currentStatus === "Order processing" ||
+      currentStatus === "Being delivered" ||
+      currentStatus === "Delivered"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng đã được xử lý, không thể hủy",
+      });
+    }
+    if (currentStatus === "Canceled by user") {
+      return res.status(400).json({
+        success: false,
+        message: "Đơn hàng đã được hủy bởi bạn trước đó",
+      });
+    }
+    if (currentStatus === "Canceled") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Đơn hàng đã bị hủy bởi admin" });
+    }
+    order.orderStatus.push({ status: "Canceled by user", time: new Date() });
+    await order.save();
+    res
+      .status(200)
+      .json({ success: true, message: "Hủy đơn hàng thành công", data: order });
+  } catch (error) {
+    console.error("CancelMyOrder API Error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi server khi hủy đơn hàng" });
   }
 };

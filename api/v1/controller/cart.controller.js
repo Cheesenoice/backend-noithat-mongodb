@@ -174,14 +174,13 @@ module.exports.deleteCart = async (req, res) => {
 
     // Xóa sản phẩm ra khỏi giỏ hàng
     const result = await Cart.updateOne(
-      { _id: cartId },
+      { _id: cart._id },
       { $pull: { product: { product_id: productId } } }
     );
 
     return res.json({
       status: "success",
       message: "Sản phẩm đã được xóa khỏi giỏ hàng",
-      result: result,
     });
   } catch (error) {
     console.error("Delete Cart Error:", error);
@@ -195,7 +194,7 @@ module.exports.updateCart = async (req, res) => {
   try {
     const token = req.cookies.token;
     const productId = req.params.id;
-    const quantity = parseInt(req.params.quantity);
+    const quantity = parseInt(req.body.quantity);
 
     if (!token) {
       return res
@@ -216,17 +215,17 @@ module.exports.updateCart = async (req, res) => {
         .json({ success: false, message: "Cart not found" });
     }
 
+    const cartId = cart._id;
+
     // Check if the product already exists in the cart
     const existingProduct = cart.product.find(
       (item) => item.product_id == productId
     );
 
     if (existingProduct) {
-      const newQuantity = existingProduct.quantity + quantity;
-
       await Cart.updateOne(
         { _id: cartId, "product.product_id": productId },
-        { $set: { "product.$.quantity": newQuantity } }
+        { $set: { "product.$.quantity": quantity } }
       );
 
       return res.json({
@@ -234,28 +233,17 @@ module.exports.updateCart = async (req, res) => {
         message: "Product quantity updated in cart",
         data: {
           product_id: productId,
-          quantity: newQuantity,
-        },
-      });
-    } else {
-      const objectCart = {
-        product_id: productId,
-        quantity: quantity,
-      };
-
-      await Cart.updateOne({ _id: cartId }, { $push: { product: objectCart } });
-
-      return res.json({
-        status: "success",
-        message: "Product added to cart",
-        data: {
-          product_id: productId,
           quantity: quantity,
         },
       });
+    } else {
+      return res.status(404).json({
+        status: "error",
+        message: "Product not found in cart",
+      });
     }
   } catch (error) {
-    console.error("Error adding to cart:", error);
+    console.error("Error updating cart:", error);
     return res
       .status(500)
       .json({ status: "error", message: "Internal Server Error" });

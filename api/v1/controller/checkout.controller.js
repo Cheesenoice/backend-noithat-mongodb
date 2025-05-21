@@ -6,6 +6,7 @@ const productHelper = require("../../../helper/product.priceNew");
 const { paymomo } = require("./paymomo.controller");
 const Account = require("../../../model/user.model");
 const { Client } = require("@googlemaps/google-maps-services-js");
+const ShippingFee = require("../../../model/shippingFee.model");
 
 // Khởi tạo mapsClient
 const mapsClient = new Client({});
@@ -17,20 +18,42 @@ const WAREHOUSE_LOCATION = {
 };
 
 // Hàm tính cước phí
-function calculateFee(distanceInMeters) {
+async function calculateFee(distanceInMeters) {
   const distanceInKm = distanceInMeters / 1000;
   let fee = 0;
-  const baseFee = 20000; // Phí cố định cho 3km đầu
-  const ratePerKm = 5000; // Phí cho mỗi km tiếp theo
-  const baseDistanceKm = 3;
 
-  if (distanceInKm <= 0) return 0;
-  if (distanceInKm <= baseDistanceKm) {
-    fee = baseFee;
-  } else {
-    fee = baseFee + (distanceInKm - baseDistanceKm) * ratePerKm;
+  try {
+    // Tìm document phù hợp với khoảng cách
+    const shippingFee = await ShippingFee.findOne({
+      range_from_km: { $lte: distanceInKm },
+      range_to_km: { $gte: distanceInKm },
+      status: "active",
+    });
+
+    // Giá trị mặc định nếu không tìm thấy
+    const defaultBaseFee = 50000;
+    const defaultExtraFeePerKm = 0;
+
+    if (!shippingFee) {
+      console.warn(
+        "Không tìm thấy phí vận chuyển phù hợp, sử dụng giá trị mặc định"
+      );
+      if (distanceInKm <= 0) return 0;
+      fee = defaultBaseFee;
+    } else {
+      const baseFee = shippingFee.base_fee;
+      const extraFeePerKm = shippingFee.extra_fee_per_km;
+
+      if (distanceInKm <= 0) return 0;
+      fee =
+        baseFee + (distanceInKm - shippingFee.range_from_km) * extraFeePerKm;
+    }
+
+    return Math.round(fee / 1000) * 1000; // Làm tròn đến hàng nghìn
+  } catch (error) {
+    console.error("Lỗi khi tính phí vận chuyển:", error.message);
+    throw new Error("Không thể tính phí vận chuyển");
   }
-  return Math.round(fee / 1000) * 1000; // Làm tròn đến hàng nghìn
 }
 
 module.exports.checkout = async (req, res) => {
@@ -66,12 +89,10 @@ module.exports.checkout = async (req, res) => {
         (addr) => addr._id.toString() === addressId
       );
       if (!selectedAddress) {
-        return res
-          .status(400)
-          .json({
-            status: "error",
-            message: "Địa chỉ được chọn không tồn tại.",
-          });
+        return res.status(400).json({
+          status: "error",
+          message: "Địa chỉ được chọn không tồn tại.",
+        });
       }
     } else {
       selectedAddress = user.address.find((addr) => addr.isDefault === true);
@@ -120,6 +141,7 @@ module.exports.checkout = async (req, res) => {
       });
     }
 
+    // Tính phí vận chuyển
     // Tính phí vận chuyển
     let shippingFee = 0;
     try {
@@ -177,7 +199,7 @@ module.exports.checkout = async (req, res) => {
       }
 
       const distanceResult = distanceResponse.data.rows[0].elements[0].distance;
-      shippingFee = calculateFee(distanceResult.value);
+      shippingFee = await calculateFee(distanceResult.value); // Thêm await
       console.log(`Calculated Shipping Fee: ${shippingFee}`);
     } catch (error) {
       console.error("Shipping Fee Calculation Error:", error.message);
@@ -298,8 +320,14 @@ module.exports.order = async (req, res) => {
         quantity: product.quantity,
         totalPrice: itemTotalPrice,
       });
+      // Update stock
+      await Product.updateOne(
+        { _id: product.product_id },
+        { $inc: { stock: -product.quantity } }
+      );
     }
 
+    // Tính phí vận chuyển
     // Tính phí vận chuyển
     let shippingFee = 0;
     try {
@@ -351,7 +379,7 @@ module.exports.order = async (req, res) => {
       }
 
       const distanceResult = distanceResponse.data.rows[0].elements[0].distance;
-      shippingFee = calculateFee(distanceResult.value);
+      shippingFee = await calculateFee(distanceResult.value); // Thêm await
       console.log(`Calculated Shipping Fee: ${shippingFee}`);
     } catch (error) {
       console.error("Shipping Fee Calculation Error:", error.message);
@@ -465,3 +493,13 @@ module.exports.order = async (req, res) => {
       .json({ success: false, message: "Lỗi server khi đặt hàng" });
   }
 };
+
+// async function getShippingFee(distance) {
+//   try {
+//     const feeRecord = await ShippingFee.findOne({ distance });
+//     return feeRecord ? feeRecord.fee : calculateFee(distance);
+//   } catch (error) {
+//     console.error("Error fetching shipping fee:", error);
+//     return calculateFee(distance);
+//   }
+// }
