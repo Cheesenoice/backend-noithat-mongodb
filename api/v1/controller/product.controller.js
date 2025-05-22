@@ -120,20 +120,25 @@ module.exports.product = async (req, res) => {
 
 module.exports.create = async (req, res) => {
   try {
-    if (req.body.position == "") {
-      const productCount = await Product.countDocuments(); // check người nếu người dùng không nhập vị trí thì sản phẩm tự tăng lên 1
-      req.body.position = productCount + 1; // ngược lại nếu người dùng nhập thì lấy vị trí đó
-    } else {
-      req.body.position = parseInt(req.body.position);
+    let products = Array.isArray(req.body) ? req.body : [req.body];
+    let createdProducts = [];
+    for (let item of products) {
+      if (item.position == "") {
+        const productCount = await Product.countDocuments();
+        item.position = productCount + 1;
+      } else {
+        item.position = parseInt(item.position);
+      }
+      item.createBy = {
+        account_id: res.locals.user.id,
+        createAt: new Date(),
+      };
+      const product = new Product(item);
+      await product.save();
+      createdProducts.push(product);
     }
-    req.body.createBy = {
-      account_id: res.locals.user.id,
-      createAt: new Date(),
-    };
-    const product = new Product(req.body);
-    await product.save();
     res.json({
-      data: product,
+      data: Array.isArray(req.body) ? createdProducts : createdProducts[0],
       code: 200,
       message: "cap nhat thanh cong",
     });
