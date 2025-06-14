@@ -237,6 +237,46 @@ module.exports.changeStatus = async (req, res) => {
   } catch (error) {}
 };
 
+module.exports.featured = async (req, res) => {
+  try {
+    // Lọc sản phẩm featured = "1"
+    const find = { deleted: false, featured: "1" };
+    const products = await Product.find(find);
+    res.json({
+      data: products,
+      code: 200,
+      message: "Lấy sản phẩm featured thành công",
+    });
+  } catch (error) {
+    res.json({
+      code: 400,
+      message: "Không thể lấy sản phẩm featured",
+    });
+  }
+};
+
+module.exports.updateFeatured = async (req, res) => {
+  try {
+    const { productid, featured } = req.body;
+    if (!Array.isArray(productid) || (featured !== "1" && featured !== "0")) {
+      return res.json({ code: 400, message: "Dữ liệu không hợp lệ" });
+    }
+    await Product.updateMany(
+      { _id: { $in: productid } },
+      { featured: featured }
+    );
+    res.json({
+      code: 200,
+      message: "Cập nhật trạng thái featured thành công",
+    });
+  } catch (error) {
+    res.json({
+      code: 400,
+      message: "Cập nhật trạng thái featured thất bại",
+    });
+  }
+};
+
 module.exports.changeMulti = async (req, res) => {
   try {
     const { ids, key, value } = req.body;
