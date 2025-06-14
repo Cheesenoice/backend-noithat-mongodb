@@ -5,6 +5,8 @@ const paginationHelper = require("../../../helper/pagination.helper");
 // const treeHelper = require("../../../helper/category");
 const Account = require("../../../model/account.model");
 const { connectors } = require("googleapis/build/src/apis/connectors");
+const ProductCategory = require("../../../model/product.category.modle");
+const productCategoryHelper = require("../../../helper/product-category");
 
 module.exports.product = async (req, res) => {
   const find = {
@@ -110,8 +112,13 @@ module.exports.product = async (req, res) => {
   res.json([
     {
       data: productData,
-      page: req.query.page,
-      limit: req.query.limit,
+      page: req.query.page || initPagination.currentPage.toString(),
+      limit: req.query.limit || initPagination.limitItem.toString(),
+      totalPages: Math.ceil(
+        countProduct / ojectPanigation.limitItem
+      ).toString(),
+      isfeatured: false,
+      keyword: req.query.keyword || null,
       code: 200,
       message: "Hiển thị thành công",
     },
@@ -323,5 +330,93 @@ module.exports.changeMulti = async (req, res) => {
       code: 400,
       message: "chỉnh sửa khong thành công",
     });
+  }
+};
+
+module.exports.slugCategory = async (req, res) => {
+  try {
+    const slug = req.params.slug;
+
+    // Tìm danh mục theo slug
+    const category = await ProductCategory.findOne({
+      slug: slug,
+      deleted: false,
+    });
+
+    if (!category) {
+      return res.status(404).json([
+        {
+          code: 404,
+          message: "Category not found",
+        },
+      ]);
+    }
+
+    // Pagination setup
+    let objectPagination = {
+      currentPage: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 6,
+    };
+
+    objectPagination.skip =
+      (objectPagination.currentPage - 1) * objectPagination.limit;
+
+    // Lấy toàn bộ danh mục con
+    const listCategory = await productCategoryHelper.getSubCategory(
+      category._id
+    );
+    const listCategoryId = listCategory.map((item) => item._id.toString());
+
+    // Gộp danh mục cha + con
+    const allCategoryIds = [category._id.toString(), ...listCategoryId];
+
+    // Đếm tổng sản phẩm để tính tổng số trang
+    const totalProduct = await Product.countDocuments({
+      product_category_id: { $in: allCategoryIds },
+      deleted: false,
+    });
+
+    // Lấy sản phẩm phân trang
+    const products = await Product.find({
+      product_category_id: { $in: allCategoryIds },
+      deleted: false,
+    })
+      .sort({ position: "desc" })
+      .limit(objectPagination.limit)
+      .skip(objectPagination.skip);
+
+    // Tính giá mới theo phần trăm giảm giá
+    const newProducts = products.map((item) => {
+      item.priceNew = (
+        (item.price * (100 - item.discountPercentage)) /
+        100
+      ).toFixed(0);
+      return item;
+    });
+
+    // Trả JSON
+    return res.json([
+      {
+        data: newProducts,
+        page: objectPagination.currentPage.toString(),
+        limit: objectPagination.limit.toString(),
+        totalPages: Math.ceil(totalProduct / objectPagination.limit).toString(),
+        code: 200,
+        message: "hiển thị thành công",
+        category: {
+          id: category._id,
+          title: category.title,
+          slug: category.slug,
+        },
+      },
+    ]);
+  } catch (error) {
+    console.error("Error in slugCategory API:", error);
+    return res.status(500).json([
+      {
+        code: 500,
+        message: "Internal server error",
+      },
+    ]);
   }
 };

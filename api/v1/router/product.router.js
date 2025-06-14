@@ -3,6 +3,7 @@ const contoller = require("../controller/product.controller");
 const router = express.Router();
 
 router.get("/", contoller.product);
+router.get("/:slug", contoller.slugCategory);
 router.post("/create", contoller.create);
 router.patch("/delete/:id", contoller.delete);
 router.patch("/edit/:id", contoller.edit);
